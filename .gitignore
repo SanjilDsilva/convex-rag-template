@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Build outputs
+.next/
+dist/
+out/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Convex
+.convex/
