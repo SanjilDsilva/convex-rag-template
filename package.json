@@ -10,6 +10,7 @@
     "codegen": "convex codegen"
   },
   "dependencies": {
+<<<<<<< HEAD
     "@ai-sdk/google": "^1.2.22",
     "@google/generative-ai": "^0.24.1",
     "ai": "^4.3.19",
@@ -24,6 +25,21 @@
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
+=======
+    "convex": "^1.17.2",
+    "@ai-sdk/google": "^1.0.10",
+    "ai": "^4.0.28",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@types/pdf-parse": "^1.1.4",
+>>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
     "typescript": "^5.7.2"
   }
 }

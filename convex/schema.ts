@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+<<<<<<< HEAD
   // ---------------------------------------------------------------------------
   // USERS TABLE
   // ---------------------------------------------------------------------------
@@ -96,4 +97,20 @@ export default defineSchema({
     text: v.string(),
     createdAt: v.float64(),
   }).index("by_table", ["table"]),
+=======
+  documents: defineTable({
+    text: v.string(),
+    createdAt: v.number(),
+  }),
+  
+  embeddings: defineTable({
+    text: v.string(),
+    embedding: v.array(v.float64()),
+    docId: v.id("documents"),
+    createdAt: v.number(),
+  }).vectorIndex("by_embedding", {
+    vectorField: "embedding",
+    dimensions: 768,
+  }),
+>>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
 });

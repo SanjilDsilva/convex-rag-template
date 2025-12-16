@@ -9,7 +9,10 @@
  */
 
 import type * as askassistant from "../askassistant.js";
+<<<<<<< HEAD
 import type * as dbqueries from "../dbqueries.js";
+=======
+>>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
 import type * as ingest from "../ingest.js";
 import type * as utils from "../utils.js";
 
@@ -21,7 +24,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   askassistant: typeof askassistant;
+<<<<<<< HEAD
   dbqueries: typeof dbqueries;
+=======
+>>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
   ingest: typeof ingest;
   utils: typeof utils;
 }>;
