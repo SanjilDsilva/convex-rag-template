@@ -1,0 +1,29 @@
+{
+  "name": "convex-rag",
+  "version": "1.0.0",
+  "description": "RAG system with Convex backend",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "convex": "convex dev",
+    "codegen": "convex codegen"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^1.2.22",
+    "@google/generative-ai": "^0.24.1",
+    "ai": "^4.3.19",
+    "convex": "^1.31.0",
+    "next": "^15.1.0",
+    "pdf-parse": "^1.1.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}
