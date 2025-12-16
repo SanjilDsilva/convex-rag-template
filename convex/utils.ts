@@ -76,12 +76,17 @@ export async function generateLLMResponse(
 
   const google = createGoogleGenerativeAI({ apiKey });
 
-  const { text } = await generateText({
-    model: google("models/gemini-2.5-flash"),
-    prompt: `Context:\n${context}\n\nQuestion: ${prompt}\n\nPlease answer the question based on the context provided above. If the answer is not in the context, say so.`,
-    temperature: 0.7,
-    maxTokens: 500,
-  });
+  try {
+    const { text } = await generateText({
+      model: google("models/gemini-2.5-flash"),
+      prompt: `Context:\n${context}\n\nQuestion: ${prompt}\n\nPlease answer the question based on the context provided above. If the answer is not in the context, say so.`,
+      temperature: 0.7,
+      maxTokens: 500,
+    });
 
-  return text;
+    return text;
+  } catch (error) {
+    console.error("LLM Generation failed:", error);
+    throw new Error(`LLM Generation failed: ${(error as any).message}`);
+  }
 }
