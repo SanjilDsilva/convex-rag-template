@@ -69,7 +69,7 @@ export default function Home() {
     setSources([]);
 
     try {
-      const result = await askAssistant({ query });
+      const result = await askAssistant({ query, userId, workspaceId });
       setAnswer(result.answer);
       setSources(result.sources);
     } catch (error) {
