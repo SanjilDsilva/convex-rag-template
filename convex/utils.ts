@@ -78,7 +78,7 @@ export async function generateLLMResponse(
 
   try {
     const { text } = await generateText({
-      model: google("models/gemini-2.5-flash"),
+      model: google("models/gemini-2.5-flash-lite"),
       prompt: `Context:\n${context}\n\nQuestion: ${prompt}\n\nPlease answer the question based on the context provided above. If the answer is not in the context, say so.`,
       temperature: 0.7,
       maxTokens: 500,
