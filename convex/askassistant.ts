@@ -4,6 +4,7 @@ import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { generateLLMResponse } from "./utils";
 
+
 export const askAssistant = action({
   args: {
     query: v.string(),
@@ -11,6 +12,7 @@ export const askAssistant = action({
     workspaceId: v.id("workspaces"),
     channelId: v.optional(v.id("channels")),
   },
+<<<<<<< Updated upstream
   handler: async (
     ctx: any,
     args: {
@@ -174,6 +176,98 @@ export const askAssistant = action({
     return {
       answer,
       sources,
+=======
+
+  handler: async (ctx, args) => {
+    const prompt = args.query;
+
+
+    // --- Detect workspace/channel/user info requests ---
+    const lower = prompt.toLowerCase();
+    // 1. Channels in workspace
+    if (lower.includes("channels in this workspace") && args.userId && args.workspaceId) {
+      const channels = await ctx.runQuery(api.dbqueries.getChannelsInWorkspace, {
+        userId: args.userId,
+        workspaceId: args.workspaceId,
+      });
+      const answer = channels.length
+        ? `Channels in this workspace:\n` + channels.map(c => `- ${c.name}`).join("\n")
+        : "No channels found in this workspace.";
+      return { answer, sources: ["channels"] };
+    }
+    // 2. Users in workspace
+    if (lower.includes("users in this workspace") && args.userId && args.workspaceId) {
+      const users = await ctx.runQuery(api.dbqueries.getUsersInWorkspace, {
+        userId: args.userId,
+        workspaceId: args.workspaceId,
+      });
+      const answer = users.length
+        ? `Users in this workspace:\n` + users.map(u => `- ${u.name || u.email || u._id}`).join("\n")
+        : "No users found in this workspace.";
+      return { answer, sources: ["users"] };
+    }
+    // 3. Workspace details
+    if (lower.includes("workspace details") && args.userId && args.workspaceId) {
+      const ws = await ctx.runQuery(api.dbqueries.getWorkspace, {
+        userId: args.userId,
+        workspaceId: args.workspaceId,
+      });
+      if (!ws) return { answer: "Workspace not found.", sources: [] };
+      const answer = `Workspace: ${ws.name}\nJoin code: ${ws.joinCode}`;
+      return { answer, sources: ["workspace"] };
+    }
+    // 4. Summarize messages in a channel
+    if (lower.includes("summarize messages in this channel") && args.userId && args.workspaceId && args.channelId) {
+      const messages = await ctx.runQuery(api.dbqueries.getMessagesInChannel, {
+        userId: args.userId,
+        workspaceId: args.workspaceId,
+        channelId: args.channelId,
+      });
+      const context = messages.map(m => m.body).join("\n");
+      const answer = await generateLLMResponse("Summarize the following messages:", context);
+      return { answer, sources: ["summary"] };
+    }
+
+    // --- Default: classify as chat or rag ---
+    const classify = await generateLLMResponse(
+      `Classify into "chat" or "rag": ${prompt}`,
+      ""
+    );
+    const mode = classify.includes("chat") ? "chat" : "rag";
+
+    // -----------------------
+    // CHAT MODE
+    // -----------------------
+    if (mode === "chat" && args.channelId && args.userId && args.workspaceId) {
+      const messages = await ctx.runQuery(api.dbqueries.getMessagesInChannel, {
+        userId: args.userId,
+        workspaceId: args.workspaceId,
+        channelId: args.channelId,
+      });
+      const context = messages.map(m => m.body).join("\n");
+      const answer = await generateLLMResponse(prompt, context);
+      return { answer, sources: ["chat"] };
+    }
+
+    // -----------------------
+    // RAG MODE
+    // -----------------------
+    const vector = await embedText(prompt);
+    const results = await ctx.vectorSearch("embeddings", "by_embedding", {
+      vector,
+      limit: 5,
+    });
+    const chunks = await Promise.all(
+      results.map(r =>
+        ctx.runQuery(internal.askassistant.getEmbedding, { id: r._id })
+      )
+    );
+    const context = chunks.map(c => c?.text).join("\n\n");
+    const answer = await generateLLMResponse(prompt, context);
+    return {
+      answer,
+      sources: chunks.map(c => c?.text),
+>>>>>>> Stashed changes
     };
   },
 });

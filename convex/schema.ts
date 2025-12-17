@@ -2,10 +2,38 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   // ---------------------------------------------------------------------------
   // USERS TABLE
   // ---------------------------------------------------------------------------
+=======
+
+  // -----------------------------
+  // DOCUMENT + EMBEDDINGS (RAG)
+  // -----------------------------
+  documents: defineTable({
+    text: v.string(),
+    createdAt: v.float64(),
+  }),
+
+  embeddings: defineTable({
+    text: v.string(),
+    embedding: v.array(v.float64()),
+    createdAt: v.float64(),
+    docId: v.optional(v.id("documents")),
+    messageId: v.optional(v.id("messages")),
+    table: v.optional(v.string()),
+    rowId: v.optional(v.string()),
+  }).vectorIndex("by_embedding", {
+    vectorField: "embedding",
+    dimensions: 768,
+  }),
+
+  // -----------------------------
+  // USERS / WORKSPACES / CHANNELS
+  // -----------------------------
+>>>>>>> Stashed changes
   users: defineTable({
     bio: v.optional(v.string()),
     email: v.optional(v.string()),
@@ -39,10 +67,23 @@ export default defineSchema({
     workspaceId: v.id("workspaces"),
   }).index("by_workspace_id", ["workspaceId"]),
 
+<<<<<<< Updated upstream
 
   // ---------------------------------------------------------------------------
   // MESSAGES TABLE
   // ---------------------------------------------------------------------------
+=======
+  members: defineTable({
+    userId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+  }).index("by_workspace_id", ["workspaceId"])
+    .index("by_user_id", ["userId"]),
+
+  conversations: defineTable({
+    workspaceId: v.id("workspaces"),
+  }).index("by_workspace_id", ["workspaceId"]),
+
+>>>>>>> Stashed changes
   messages: defineTable({
     body: v.optional(v.string()), // allow null for body
     calendarEvent: v.optional(v.object({
@@ -62,6 +103,7 @@ export default defineSchema({
     .index("by_workspace_id", ["workspaceId"])
     .index("by_member_id", ["memberId"])
     .index("by_parent_message_id", ["parentMessageId"])
+<<<<<<< Updated upstream
     .index("by_conversation_id", ["conversationId"])
     .index(
       "by_channel_id_parent_message_id_conversation_id",
@@ -113,4 +155,7 @@ export default defineSchema({
     dimensions: 768,
   }),
 >>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
+=======
+    .index("by_conversation_id", ["conversationId"]),
+>>>>>>> Stashed changes
 });

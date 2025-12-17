@@ -69,67 +69,41 @@ export const insertEmbedding = internalMutation({
 =======
 import { v } from "convex/values";
 import { action, internalMutation } from "./_generated/server";
-import { api, internal } from "./_generated/api";
-import { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { chunkText, embedText } from "./utils";
 
-/**
- * Internal mutation to insert a document
- */
 export const insertDocument = internalMutation({
-  args: {
-    text: v.string(),
-  },
-  handler: async (ctx, args): Promise<Id<"documents">> => {
-    const docId = await ctx.db.insert("documents", {
+  args: { text: v.string() },
+  handler: async (ctx, args) =>
+    ctx.db.insert("documents", {
       text: args.text,
       createdAt: Date.now(),
-    });
-    return docId;
-  },
+    }),
 });
 
-/**
- * Internal mutation to insert an embedding
- */
 export const insertEmbedding = internalMutation({
   args: {
     text: v.string(),
-    embedding: v.array(v.number()),
+    embedding: v.array(v.float64()),
     docId: v.id("documents"),
   },
-  handler: async (ctx, args): Promise<Id<"embeddings">> => {
-    const embeddingId = await ctx.db.insert("embeddings", {
+  handler: async (ctx, args) =>
+    ctx.db.insert("embeddings", {
       text: args.text,
       embedding: args.embedding,
       docId: args.docId,
       createdAt: Date.now(),
-    });
-    return embeddingId;
-  },
+    }),
 });
 
-/**
- * Action to ingest a document
- * Splits text into chunks, generates embeddings, and stores them
- */
 export const ingestDocument = action({
-  args: {
-    text: v.string(),
-  },
-  handler: async (ctx, args): Promise<{ documentId: Id<"documents">; chunksProcessed: number }> => {
-    // Insert the main document
-    const docId = await ctx.runMutation(internal.ingest.insertDocument, {
-      text: args.text,
-    });
-
-    // Split text into chunks
+  args: { text: v.string() },
+  handler: async (ctx, args) => {
+    const docId = await ctx.runMutation(internal.ingest.insertDocument, { text: args.text });
     const chunks = chunkText(args.text);
-    console.log(`Split document into ${chunks.length} chunks`);
 
-    // Process each chunk: generate embedding and insert
-    let chunksProcessed = 0;
     for (const chunk of chunks) {
+<<<<<<< Updated upstream
       try {
         // Generate embedding for the chunk
         const embedding = await embedText(chunk);
@@ -154,6 +128,17 @@ export const ingestDocument = action({
       documentId: docId,
       chunksProcessed,
     };
+=======
+      const vector = await embedText(chunk);
+      await ctx.runMutation(internal.ingest.insertEmbedding, {
+        text: chunk,
+        embedding: vector,
+        docId,
+      });
+    }
+
+    return { docId, chunks: chunks.length };
+>>>>>>> Stashed changes
   },
 });
 >>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4

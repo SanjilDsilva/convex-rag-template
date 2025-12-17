@@ -31,11 +31,10 @@ export async function embedText(text: string): Promise<number[]> {
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { embed, generateText } from "ai";
 
-/**
- * Split text into chunks of 500-700 characters
- */
+/** Create chunks for RAG */
 export function chunkText(text: string): string[] {
   const chunks: string[] = [];
+<<<<<<< Updated upstream
   const minChunkSize = 500;
   const maxChunkSize = 700;
   
@@ -70,18 +69,27 @@ export function chunkText(text: string): string[] {
     startIndex = endIndex;
   }
   
+=======
+  const size = 600;
+
+  for (let i = 0; i < text.length; i += size) {
+    chunks.push(text.slice(i, i + size));
+  }
+>>>>>>> Stashed changes
   return chunks;
 }
 
-/**
- * Generate embedding for text using Google's embedding model
- */
+/** Generate embeddings */
 export async function embedText(text: string): Promise<number[]> {
+<<<<<<< Updated upstream
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY environment variable is not set");
   }
   
+=======
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
+>>>>>>> Stashed changes
   const google = createGoogleGenerativeAI({ apiKey });
   
   const { embedding } = await embed({
@@ -92,6 +100,7 @@ export async function embedText(text: string): Promise<number[]> {
   return embedding;
 }
 
+<<<<<<< Updated upstream
 /**
  * Generate LLM response using Gemini 2.5 Flash
  */
@@ -113,6 +122,18 @@ export async function generateLLMResponse(
     maxTokens: 500,
   });
   
+=======
+/** Generate LLM answer */
+export async function generateLLMResponse(prompt: string, context: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY!;
+  const google = createGoogleGenerativeAI({ apiKey });
+
+  const { text } = await generateText({
+    model: google("models/gemini-2.5-flash"),
+    prompt: `Context:\n${context}\n\nQuestion: ${prompt}`,
+  });
+
+>>>>>>> Stashed changes
   return text;
 }
 >>>>>>> 368316ad71f416805513bbc89e050b931cb2bba4
