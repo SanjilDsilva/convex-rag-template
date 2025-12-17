@@ -34,3 +34,40 @@ export const searchUsersByEmail = query({
       .withIndex("email", (q) => q.eq("email", args.email))
       .collect(),
 });
+
+export const getChannelByName = query({
+  args: {
+    name: v.string(),
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("channels")
+      .withIndex("by_workspace_id", q =>
+        q.eq("workspaceId", args.workspaceId)
+      )
+      .filter(q => q.eq(q.field("name"), args.name))
+      .first();
+  },
+});
+
+export const getAllChannels = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("channels")
+      .withIndex("by_workspace_id", q => q.eq("workspaceId", args.workspaceId))
+      .collect();
+  },
+});
+
+export const getAllMessages = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_workspace_id", q => q.eq("workspaceId", args.workspaceId))
+      .order("desc")
+      .take(100);
+  },
+});

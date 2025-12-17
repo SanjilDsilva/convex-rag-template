@@ -1,109 +1,243 @@
 import { action } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { embedText, generateLLMResponse } from "./utils";
 
 export const askAssistant = action({
-  // Combine args from both worlds:
-  // 1. Chat Context (optional, for "Slack" features)
-  // 2. Query (required)
   args: {
     query: v.string(),
     userId: v.optional(v.id("users")),
     workspaceId: v.optional(v.id("workspaces")),
-    channelId: v.optional(v.id("channels")),
   },
+
   handler: async (ctx, args) => {
-    // -------------------------------------------------------------------------
-    // 1. INTENT CLASSIFICATION
-    // -------------------------------------------------------------------------
-    // We ask the LLM to decide if this is a "Chat Query" (about messages/users)
-    // or a "Document Query" (about uploaded PDFs/text).
-    const classifyPrompt = `
-    You are an AI assistant routing logic.
-    User Query: "${args.query}"
-    Context Available: channelId=${args.channelId ? "YES" : "NO"}, workspaceId=${args.workspaceId ? "YES" : "NO"}.
-
-    Determine the INTENT:
-    - "chat_search": if the user asks about messages, chat history, channel summary, users.
-    - "rag_search": if the user asks about documents, "the file", "uploaded text", or general knowledge that might be in the PDFs.
-    
-    Return ONLY a JSON string: {"intent": "chat_search"} or {"intent": "rag_search"}.
-    `;
-
-    // We use a simple generation call for classification (could be optimized)
-    const classificationJson = await generateLLMResponse(classifyPrompt, "");
-    let intent = "rag_search"; // Default
-    try {
-      const parsed = JSON.parse(classificationJson.replace(/```json/g, "").replace(/```/g, "").trim());
-      if (parsed.intent) intent = parsed.intent;
-    } catch (e) {
-      console.log("Classification failed, defaulting to RAG");
-    }
-
-    console.log(`Intent detected: ${intent}`);
-
-    // -------------------------------------------------------------------------
-    // 2. BRANCH: CHAT SEARCH (Slack-like)
-    // -------------------------------------------------------------------------
-    if (intent === "chat_search" && args.channelId) {
-      // Fetch recent messages from the channel
-      const messages = await ctx.runQuery(api.dbqueries.getMessagesInChannel, {
-        channelId: args.channelId
-      });
-
-      // If no messages, fallback or just say empty
-      if (!messages || messages.length === 0) {
-        return { answer: "No messages found in this channel to summarize.", sources: [] };
-      }
-
-      const messageContext = messages
-        .map((m: any) => `[${new Date(m._creationTime).toISOString()}] User ${m.memberId}: ${m.body}`)
-        .join("\n");
-
-      const answer = await generateLLMResponse(args.query, messageContext);
-      return { answer, sources: ["Chat History"] };
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. BRANCH: RAG SEARCH (Document-like)
-    // -------------------------------------------------------------------------
-    // Fallback to RAG if intent is RAG OR if Chat intent failed (missing channelId)
-
-    // Generate embedding for the query
-    const queryEmbedding = await embedText(args.query);
-
-    // Perform vector search
-    const searchResults = await ctx.vectorSearch("embeddings", "by_embedding", {
-      vector: queryEmbedding,
-      limit: 5,
-    });
-
-    if (searchResults.length === 0) {
+    if (!args.workspaceId) {
       return {
-        answer: "I don't have enough information in the documents (or chat context) to answer that.",
+        answer: "Workspace context is required.",
         sources: [],
       };
     }
 
-    // Fetch the full embedding documents
-    const relevantChunks = await Promise.all(
-      searchResults.map((result: any) => ctx.runQuery(internal.askassistant.getEmbedding, { id: result._id }))
+    // ---------------------------------------------------------------------
+    // 1. EXTRACT CHANNEL NAME (if mentioned)
+    // ---------------------------------------------------------------------
+    const channelExtractionPrompt = `
+You are an information extractor.
+
+User query:
+"${args.query}"
+
+If the query mentions a channel name, extract it.
+
+Examples:
+- "What happened in general channel?" → {"channel":"general"}
+- "Summarize announcements" → {"channel":"announcements"}
+- "What did we discuss today?" → {"channel":null}
+
+Return ONLY JSON:
+{"channel": string | null}
+`;
+
+    const extractionRaw = await generateLLMResponse(
+      channelExtractionPrompt,
+      ""
     );
 
-    // Build context string from top chunks
-    const context = relevantChunks
-      .map((chunk: any, idx: number) => `[${idx + 1}] ${chunk?.text || ''}`)
-      .filter((text: string) => text.trim().length > 0)
+    let channelName: string | null = null;
+
+    try {
+      const parsed = JSON.parse(
+        extractionRaw.replace(/```json|```/g, "").trim()
+      );
+      channelName = parsed.channel ?? null;
+    } catch {
+      console.log("Channel extraction failed");
+    }
+
+    // ---------------------------------------------------------------------
+    // 2. RESOLVE CHANNEL ID (if name found)
+    // ---------------------------------------------------------------------
+    let channelId = null;
+
+    if (channelName) {
+      const channel = await ctx.runQuery(
+        api.dbqueries.getChannelByName,
+        {
+          name: channelName,
+          workspaceId: args.workspaceId,
+        }
+      );
+
+      if (!channel) {
+        return {
+          answer: `I couldn't find a channel named "${channelName}".`,
+          sources: [],
+        };
+      }
+
+      channelId = channel._id;
+    }
+
+    // ---------------------------------------------------------------------
+    // 3. CHAT SEARCH (Slack-like)
+    // ---------------------------------------------------------------------
+    if (channelId) {
+      const messages = await ctx.runQuery(
+        api.dbqueries.getMessagesInChannel,
+        { channelId }
+      );
+
+      if (!messages.length) {
+        return {
+          answer: `No messages found in #${channelName}.`,
+          sources: [],
+        };
+      }
+
+      const messageContext = messages
+        .map(m => `[${new Date(m._creationTime).toISOString()}] ${m.body}`)
+        .join("\n");
+
+      const chatPrompt = `
+You are an AI assistant summarizing a developer chat channel.
+
+INSTRUCTIONS:
+- Provide a clear, structured summary of the conversation.
+- Use Markdown headers (###) to organize sections.
+- Use bullet points for lists, but simple paragraphs are allowed if better for flow.
+- Highlight key decisions, blockers, and progress.
+- Be concise but complete.
+
+FORMAT:
+
+### Summary
+[Executive summary of the conversation]
+
+### Key Discussions
+- [Topic]: [Details]
+
+### Decisions made
+- [Decision]
+
+### Open Issues
+- [Issue]
+
+USER QUESTION:
+${args.query}
+
+CHAT HISTORY:
+${messageContext}
+`;
+
+      const answer = await generateLLMResponse(chatPrompt, "");
+      return { answer, sources: [`#${channelName}`] };
+    }
+
+    // ---------------------------------------------------------------------
+    // 4. FALLBACK → RAG SEARCH
+    // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // 4. FALLBACK → MIXED SEARCH (RAG + All Channels)
+    // ---------------------------------------------------------------------
+
+    // A. Fetch RAG Context
+    const embedding = await embedText(args.query);
+    const ragResults = await ctx.vectorSearch("embeddings", "by_embedding", {
+      vector: embedding,
+      limit: 5,
+    });
+
+    const ragChunks = await Promise.all(
+      ragResults.map(r =>
+        ctx.runQuery(api.askassistant.getEmbedding, { id: r._id })
+      )
+    );
+
+    const ragContext = ragChunks
+      .map((c, i) => `[Doc ${i + 1}] ${c?.text ?? ""}`)
       .join("\n\n");
 
-    // Generate response using LLM
-    const answer = await generateLLMResponse(args.query, context);
+    // B. Fetch Recent Chat Activity (Multi-channel)
+    const [recentMessages, allChannels] = await Promise.all([
+      ctx.runQuery(api.dbqueries.getAllMessages, {
+        workspaceId: args.workspaceId,
+      }),
+      ctx.runQuery(api.dbqueries.getAllChannels, {
+        workspaceId: args.workspaceId,
+      }),
+    ]);
 
-    // Extract source texts for reference
-    const sources = relevantChunks
-      .map((chunk: any) => chunk?.text)
-      .filter((text: any) => text);
+    const channelMap = new Map(allChannels.map(c => [c._id, c.name]));
+
+    // Group messages by channel
+    const messagesByChannel = new Map<string, string[]>();
+
+    // Reverse to show oldest first in context (natural reading order)
+    [...recentMessages].reverse().forEach(m => {
+      const chName = (m.channelId && channelMap.get(m.channelId)) || "unknown";
+      if (!messagesByChannel.has(chName)) {
+        messagesByChannel.set(chName, []);
+      }
+      messagesByChannel
+        .get(chName)!
+        .push(`[${new Date(m._creationTime).toISOString()}] ${m.body}`);
+    });
+
+    let chatContext = "";
+    if (messagesByChannel.size > 0) {
+      chatContext = "RECENT CHANNEL ACTIVITY:\n";
+      for (const [chName, msgs] of messagesByChannel.entries()) {
+        chatContext += `\n#${chName}:\n${msgs.join("\n")}\n`;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // 5. GENERATE RESPONSE WITH MIXED CONTEXT
+    // ---------------------------------------------------------------------
+
+    const combinedContext = `
+${ragContext ? "KNOWLEDGE BASE:\n" + ragContext : ""}
+
+${chatContext}
+`.trim();
+
+    if (!combinedContext) {
+      return {
+        answer: "I don't have enough information (no documents or recent messages found).",
+        sources: [],
+      };
+    }
+
+    const mixedPrompt = `
+You are a senior AI assistant for full-stack and AI engineers.
+
+INSTRUCTIONS:
+- Answer the question using the provided context (Knowledge Base + Recent Channel Activity).
+- If the user asks for a summary or "what happened", group your answer by channel (e.g., "In #general...", "In #random...").
+- If the user asks a specific question, answer directly.
+- Use Markdown formatting (headers, bold, lists).
+- If the answer is not in the context, say so clearly.
+
+FORMAT:
+
+### Answer/Summary
+[Direct answer or Channel-wise summary]
+
+### Key Details
+- [Points]
+
+QUESTION:
+${args.query}
+
+CONTEXT:
+${combinedContext}
+`;
+
+    const answer = await generateLLMResponse(mixedPrompt, "");
+
+    // Collect sources
+    const uniqueChannels = Array.from(messagesByChannel.keys()).map(c => `#${c}`);
+    const sources = [...(ragResults.length ? ["Knowledge Base"] : []), ...uniqueChannels];
 
     return { answer, sources };
   },
