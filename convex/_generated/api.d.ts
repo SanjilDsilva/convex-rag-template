@@ -11,6 +11,7 @@
 import type * as askassistant from "../askassistant.js";
 import type * as dbqueries from "../dbqueries.js";
 import type * as ingest from "../ingest.js";
+import type * as seed_distinct from "../seed_distinct.js";
 import type * as utils from "../utils.js";
 
 import type {
@@ -23,6 +24,7 @@ declare const fullApi: ApiFromModules<{
   askassistant: typeof askassistant;
   dbqueries: typeof dbqueries;
   ingest: typeof ingest;
+  seed_distinct: typeof seed_distinct;
   utils: typeof utils;
 }>;
 

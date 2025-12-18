@@ -13,7 +13,7 @@ export async function generateLLMResponse(prompt: string, context = ""): Promise
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) throw new Error("GOOGLE_API_KEY is not set");
   const { GoogleGenerativeAI } = await import("@google/generative-ai");
   const genAI = new GoogleGenerativeAI(apiKey);

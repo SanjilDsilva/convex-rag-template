@@ -1,7 +1,41 @@
-
-
+// Query: Get workspace by name or ID
+export const getWorkspaceByNameOrId = query({
+  args: { nameOrId: v.string() },
+  handler: async (ctx, args) => {
+    let ws = await ctx.db.query("workspaces").filter(q => q.eq(q.field("name"), args.nameOrId)).first();
+    // Convex IDs are 22 characters long (adjust if your IDs are different)
+    if (!ws && args.nameOrId.length === 22) {
+      ws = await ctx.db.get(args.nameOrId as Id<"workspaces">);
+    }
+    return ws;
+  },
+});
+// Query: Get channel by name in a workspace
+export const getChannelByName = query({
+  args: { workspaceId: v.id("workspaces"), name: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("channels")
+      .withIndex("by_workspace_id", q => q.eq("workspaceId", args.workspaceId))
+      .filter(q => q.eq(q.field("name"), args.name))
+      .first();
+  },
+});
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+
+// Query: Check if user is a member of the workspace (returns boolean)
+export const isUserInWorkspace = query({
+  args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const member = await ctx.db
+      .query("members")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("workspaceId"), args.workspaceId))
+      .first();
+    return !!member;
+  },
+});
 
 // Helper: Check if user is a member of the workspace
 async function assertMembership(ctx: any, userId: string, workspaceId: string) {
