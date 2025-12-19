@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import styles from "./page.module.css";
 
 export default function Home() {
+
   const [file, setFile] = useState<File | null>(null);
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserId(localStorage.getItem("userId"));
+    setWorkspaceId(localStorage.getItem("workspaceId"));
+  }, []);
 
   const ingestDocument = useAction(api.ingest.ingestDocument);
   const askAssistant = useAction(api.askassistant.askAssistant);
@@ -61,8 +70,9 @@ export default function Home() {
     }
   };
 
+
   const handleAsk = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || !userId || !workspaceId) return;
 
     setLoading(true);
     setAnswer("");
@@ -78,6 +88,25 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+
+  if (!userId) {
+    return (
+      <div className={styles.container}>
+        <p>Please log in to continue.</p>
+        <a href="/login" className={styles.button}>Go to Login</a>
+      </div>
+    );
+  }
+
+  if (!workspaceId) {
+    return (
+      <div className={styles.container}>
+        <p>Please select a workspace.</p>
+        <a href="/workspaces" className={styles.button}>Go to Workspaces</a>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>

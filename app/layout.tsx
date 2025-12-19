@@ -1,21 +1,14 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import "@/app/globals.css";
+import { ReactNode } from "react";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 
-export const metadata: Metadata = {
-  title: "RAG Document Chat",
-  description: "Upload documents and ask questions",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+    <html lang="en" className="dark">
+      <body className="bg-background text-text-primary font-inter min-h-screen">
+        <ConvexClientProvider>
+          {children}
+        </ConvexClientProvider>
       </body>
     </html>
   );

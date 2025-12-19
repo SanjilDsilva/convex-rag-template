@@ -16,6 +16,7 @@ export default defineSchema({
     location: v.optional(v.string()),
     website: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.float64()),
+    createdAt: v.optional(v.float64()),
   }).index("email", ["email"]),
 
   workspaces: defineTable({
@@ -33,6 +34,7 @@ export default defineSchema({
     name: v.string(),
     workspaceId: v.id("workspaces"),
     icon: v.optional(v.string()),
+    createdBy: v.optional(v.id("users")),
   }).index("by_workspace_id", ["workspaceId"]),
 
   messages: defineTable({

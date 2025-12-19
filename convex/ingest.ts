@@ -1,3 +1,15 @@
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+// Mutation: Ingest a message string (placeholder for embeddings or processing)
+export const ingestString = mutation({
+  args: { messageId: v.id("messages"), body: v.string() },
+  handler: async (ctx, args) => {
+    // TODO: Add your embedding or processing logic here
+    // For now, just a placeholder
+    return { ok: true };
+  },
+});
 
 
 import { v } from "convex/values";
